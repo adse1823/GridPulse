@@ -1,6 +1,5 @@
 # GridWatch
 
-*(placeholder name — rename freely)*
 
 A grid shortfall early-warning system: forecasts electricity demand and renewable
 generation 24–48 hours ahead, compares them against known dispatchable capacity,
