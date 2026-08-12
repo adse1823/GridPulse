@@ -1,0 +1,47 @@
+# environment
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# data & db
+*.duckdb
+*.duckdb.wal
+data/
+
+# model artifacts
+models/artifacts/
+
+# testing & linting
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# secrets scanning
+.secrets.baseline
+
+# ide
+.vscode/
+.idea/
+
+# os
+.DS_Store
+Thumbs.db
+
+# terraform
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.backup
+infra/*.tfvars

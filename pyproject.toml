@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ingest*", "models*", "agents*", "api*", "dashboard*"]
+
+[project]
+name = "gridpulse"
+version = "0.1.0"
+requires-python = ">=3.11"
+
+dependencies = [
+    # data
+    "duckdb>=0.10",
+    "pandas>=2.2",
+    "numpy>=1.26",
+
+    # ingestion
+    "requests>=2.31",
+    "python-dotenv>=1.0",
+    "holidays>=0.46",          # calendar features (US holidays)
+    "gridstatus>=0.24",        # no-key ERCOT/CAISO/PJM data
+
+    # models — Tier 1
+    "lightgbm>=4.3",
+    "scikit-learn>=1.4",
+    "tensorflow>=2.16",
+
+    # agents + serving — Tier 2
+    # "langgraph>=0.1",
+    # "langchain>=0.2",
+    # "fastapi>=0.111",
+    # "uvicorn>=0.29",
+    # "streamlit>=1.35",
+    # "chromadb>=0.5",
+    # "sentence-transformers>=3.0",
+]
+
+[project.scripts]
+gridpulse-ingest = "ingest.run:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2",
+    "pytest-cov>=5.0",
+    "ruff>=0.4",
+    "pre-commit>=3.7",
+    "detect-secrets>=1.5",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

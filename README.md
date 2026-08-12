@@ -62,6 +62,43 @@ and a defined input/output contract, not shared global state.
 | Grid operators (CAISO/ERCOT/PJM/NYISO) | Regional demand, generation, price | public dashboards/APIs per operator |
 | Open-Meteo / NOAA | Historical + forecast weather | https://open-meteo.com/ |
 
+## Before you build (prerequisites)
+
+These must exist before writing any pipeline code:
+
+- **`pyproject.toml`** — pinned dependencies. Use `pip-compile` to lock exact versions + hashes.
+- **`.env.example`** — template with `EIA_API_KEY=` and (Tier 2) `LLM_API_KEY=`. Actual `.env` is gitignored and never committed.
+- **`.gitignore`** — must cover: `.env`, `*.duckdb`, `models/artifacts/`, `__pycache__/`, `venv/`, `.pytest_cache/`
+- **DuckDB schema** — define table contracts before writing ingest or model code. Demand model and renewable model must agree on column names upfront.
+- **Target region** — Tier 1 builds against one region. Use ERCOT (Texas) — most relevant given the Feb 2021 event and public API access.
+- **Eval metric + split** — define before training, not after. Use hourly MAE as primary metric; 80/10/10 chronological train/val/test split (no random shuffle — time series data leaks if you shuffle). Keras only replaces LightGBM if it beats it on the held-out test set.
+
+## Security
+
+### Tier 1
+
+- Block accidental key commits with a `pre-commit` hook (`git-secrets` or `detect-secrets`). Add on Day 1 — a committed key is permanent even after deletion.
+- Pin dependencies with integrity hashes (`pip-compile --generate-hashes`). Loose version ranges are a supply chain risk.
+
+### Tier 2 — FastAPI
+
+- Every endpoint needs authentication before any non-local deployment — at minimum an API key header check. FastAPI makes this a one-liner middleware.
+- Use Pydantic models for all request inputs. Invalid date ranges, unknown region strings, etc. should return 400, not crash the pipeline.
+- RAG corpus (historical grid incident write-ups) must be static and curated. If it ever includes scraped or user-supplied documents, a malicious document can hijack the LLM output via prompt injection.
+
+### Tier 3 — infra
+
+- GitHub Actions: EIA and LLM API keys go in GitHub Secrets, not workflow YAML env vars.
+- Terraform state contains sensitive resource metadata — store in S3 with encryption and state locking, never commit to git.
+- Scan Docker images for CVEs before pushing (Trivy or Docker Scout, both free). Base images go stale.
+- AWS IAM: the Lambda/SageMaker execution role gets only the permissions it needs — not a broad admin role.
+
+### Data sensitivity
+
+- All ingested data (EIA, Open-Meteo, grid operator feeds) is public by design. No PII, no regulated data.
+- The only secrets are API keys (EIA, LLM).
+- Edge case: risk-flagging output derived from public data could theoretically move energy markets if published early at scale. Not a concern for a portfolio project, but relevant if this ever becomes public-facing.
+
 ## Roadmap
 
 **Tier 1 — core pipeline (build first, must fully work before anything else)**
