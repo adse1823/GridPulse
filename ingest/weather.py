@@ -1,5 +1,5 @@
-import requests
 import pandas as pd
+import requests
 
 _ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
 _FORECAST = "https://api.open-meteo.com/v1/forecast"

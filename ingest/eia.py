@@ -1,6 +1,7 @@
 import os
-import requests
+
 import pandas as pd
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,7 +21,7 @@ def _api_key() -> str:
 def _paginate(url: str, params: dict) -> list[dict]:
     rows, offset = [], 0
     while True:
-        r = requests.get(url, params={**params, "offset": offset}, timeout=30)
+        r = requests.get(url, params={**params, "offset": offset}, timeout=120)
         r.raise_for_status()
         data = r.json()["response"]["data"]
         if not data:

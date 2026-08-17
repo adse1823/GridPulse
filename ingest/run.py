@@ -1,10 +1,13 @@
 import argparse
 import json
-from .load import run_historical, run_forecast_weather
+
+from .load import run_forecast_weather, run_historical
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="gridpulse-ingest", description="GridPulse data ingestion")
+    parser = argparse.ArgumentParser(
+        prog="gridpulse-ingest", description="GridPulse data ingestion"
+    )
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     hist = sub.add_parser("historical", help="Pull historical demand, generation, and weather")

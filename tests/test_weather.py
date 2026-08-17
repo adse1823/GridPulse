@@ -1,7 +1,8 @@
+from unittest.mock import MagicMock, patch
+
 import pandas as pd
-import pytest
-from unittest.mock import patch, MagicMock
-from ingest.weather import fetch_historical, fetch_forecast, ERCOT_POINTS
+
+from ingest.weather import ERCOT_POINTS, fetch_forecast, fetch_historical
 
 
 def _mock_response(lat: float, lon: float, n: int = 4) -> MagicMock:

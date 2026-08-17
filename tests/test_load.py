@@ -1,7 +1,7 @@
 import pandas as pd
-import pytest
-from ingest.schema import init_db
+
 from ingest.load import _upsert
+from ingest.schema import init_db
 
 
 def _demand_df(n: int = 3) -> pd.DataFrame:

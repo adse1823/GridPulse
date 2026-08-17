@@ -1,5 +1,3 @@
-import pytest
-import duckdb
 from ingest.schema import init_db
 
 

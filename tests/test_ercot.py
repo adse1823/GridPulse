@@ -1,6 +1,6 @@
+from unittest.mock import patch
+
 import pandas as pd
-import pytest
-from unittest.mock import patch, MagicMock
 
 
 def _load_df(n: int = 24) -> pd.DataFrame:
