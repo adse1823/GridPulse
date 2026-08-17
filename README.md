@@ -102,13 +102,13 @@ These must exist before writing any pipeline code:
 ## Roadmap
 
 **Tier 1 — core pipeline (build first, must fully work before anything else)**
-- [ ] EIA + weather ingestion → DuckDB
-- [ ] Demand forecast model (Keras) + LightGBM baseline
-- [ ] Renewable forecast model (Keras)
-- [ ] Risk-aggregation logic
-- [ ] Reporting as plain template string (no LLM yet)
-- [ ] pytest coverage
-- [ ] GitHub Actions CI (lint + test on push)
+- [x] EIA + weather ingestion → DuckDB
+- [x] Demand forecast model (LightGBM winner) + Keras baseline
+- [x] Renewable forecast model (Keras for wind, naive lag for solar)
+- [x] Risk-aggregation logic
+- [x] Reporting as plain template string (no LLM yet)
+- [x] pytest coverage (46 tests, all passing)
+- [x] GitHub Actions CI (lint + test on push)
 
 **Tier 2 — agentize + LLM/RAG**
 - [ ] Split into LangGraph-orchestrated agents
@@ -148,28 +148,66 @@ publish utility-specific hosting-capacity maps, inconsistent coverage/format).
 The headroom-ranker in Tier 2 answers a narrower, buildable question — which
 *regions* have the most spare margin, not which physical grid nodes do.
 
-## Repo structure (planned)
+## Repo structure
 
 ```
-GridWatch/
-├── ingest/            # EIA + weather pulls, DuckDB loading
+GridPulse/
+├── ingest/                 # EIA + Open-Meteo pulls, DuckDB schema + loading
+│   ├── schema.py           # CREATE TABLE statements for demand, generation, weather
+│   ├── eia.py              # EIA API: demand + generation by fuel type (paginated)
+│   ├── weather.py          # Open-Meteo: historical archive + 48h forecast
+│   ├── load.py             # upsert logic + run_historical / run_forecast_weather
+│   └── run.py              # CLI entry point (gridpulse-ingest)
 ├── models/
 │   ├── demand/
-│   └── renewable/
+│   │   ├── features.py     # build feature matrix + chronological split
+│   │   ├── train.py        # train LightGBM + Keras, save winner to artifacts/
+│   │   ├── evaluate.py     # MAE / MAPE on held-out test set
+│   │   └── predict.py      # inference on 48h forecast weather
+│   ├── renewable/
+│   │   ├── features.py     # wind + solar feature matrices, split + split_solar
+│   │   ├── train.py        # train wind model + solar model separately
+│   │   ├── evaluate.py     # MAE + normalised MAE for wind and solar
+│   │   └── predict.py      # wind: model inference; solar: naive lag_168
+│   └── artifacts/          # saved model files (gitignored)
 ├── agents/
-│   ├── demand_forecast/
-│   ├── renewable_forecast/
 │   ├── risk_aggregator/
-│   ├── headroom_ranker/   # Tier 2
+│   │   └── aggregator.py   # arithmetic risk flagging (no ML)
 │   └── reporting/
-├── api/                # FastAPI serving layer (Tier 2)
-├── dashboard/          # Streamlit app (Tier 2)
-├── infra/              # Docker, k8s manifests, Terraform (Tier 2-3)
-├── tests/
-└── docs/
-    └── scope-decisions.md
+│       └── report.py       # plain-text report formatter
+├── scripts/
+│   └── backtest.py         # historical backtest using EIA actuals (e.g. Feb 2021)
+├── tests/                  # 46 pytest tests, all mocked / in-memory
+├── docs/
+│   ├── tier1-scope.md      # definition of done for Tier 1
+│   ├── demand-forecast.md  # feature design + model architecture
+│   ├── renewable-forecast.md
+│   ├── risk-aggregation.md
+│   ├── decisions.md        # implementation decisions made during Tier 1
+│   └── model-results.md    # actual evaluation numbers
+├── .github/workflows/
+│   └── ci.yml              # ruff lint + pytest on every push
+├── pyproject.toml
+└── .env                    # EIA_API_KEY (gitignored)
+```
+
+## Running the pipeline
+
+```bash
+# 1. Ingest historical data (one-time, ~5 min)
+gridpulse-ingest historical --start 2022-01-01 --end 2024-12-31
+
+# 2. Pull 48h weather forecast (run daily)
+gridpulse-ingest forecast
+
+# 3. Generate risk report
+python -m agents.reporting.report gridpulse.duckdb
+
+# 4. Historical backtest (Feb 2021 Texas blackout)
+python scripts/backtest.py --start 2021-02-08 --end 2021-02-17
 ```
 
 ## Status
 
-Planning complete. Tier 1 not yet started.
+**Tier 1 complete** (2026-08-16). See `docs/decisions.md` for implementation decisions
+and `docs/model-results.md` for evaluation numbers.

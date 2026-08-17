@@ -91,10 +91,12 @@ comes in Tier 2.
 
 ## Definition of done (Tier 1)
 
-- [ ] EIA + weather data ingested into DuckDB for 2022–2024
-- [ ] Demand forecast model trained, evaluated — LightGBM vs Keras, winner chosen
-- [ ] Renewable forecast model trained, evaluated — same process
-- [ ] Risk aggregation logic produces correct at-risk flags
-- [ ] Plain-text report generated from flags
-- [ ] pytest coverage for all four components
-- [ ] GitHub Actions CI: lint (ruff) + tests pass on push
+- [x] EIA + weather data ingested into DuckDB for 2022–2024
+- [x] Demand forecast model trained, evaluated — LightGBM vs Keras, winner chosen
+- [x] Renewable forecast model trained, evaluated — same process
+- [x] Risk aggregation logic produces correct at-risk flags
+- [x] Plain-text report generated from flags
+- [x] pytest coverage for all four components
+- [x] GitHub Actions CI: lint (ruff) + tests pass on push
+
+**Completed: 2026-08-16. See `docs/decisions.md` and `docs/model-results.md`.**
