@@ -12,17 +12,14 @@ Usage:
 """
 
 import argparse
-import sys
 import os
-
-import pandas as pd
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from ingest.eia import fetch_demand, fetch_generation
-from agents.risk_aggregator.aggregator import aggregate
 from agents.reporting.report import generate
-
+from agents.risk_aggregator.aggregator import aggregate
+from ingest.eia import fetch_demand, fetch_generation
 
 _BLACKOUT_CONTEXT = """
 CONTEXT — Feb 2021 Texas Winter Storm Uri

@@ -3,7 +3,9 @@ import pandas as pd
 
 from .eia import fetch_demand, fetch_generation
 from .schema import init_db
-from .weather import fetch_forecast, fetch_historical
+from .weather import REGION_POINTS, fetch_forecast, fetch_historical
+
+ALL_REGIONS = list(REGION_POINTS.keys())  # ["ERCO", "CISO", "PJM", "NYIS"]
 
 
 def _upsert(
@@ -26,35 +28,65 @@ def _upsert(
     return len(df)
 
 
-def run_historical(start: str, end: str, db_path: str = "gridpulse.duckdb") -> dict:
+def run_historical(
+    start: str,
+    end: str,
+    db_path: str = "gridpulse.duckdb",
+    regions: list[str] | None = None,
+) -> dict:
+    if regions is None:
+        regions = ["ERCO"]
     conn = init_db(db_path)
+    totals: dict[str, int] = {"demand": 0, "generation": 0, "weather": 0}
 
-    print(f"[demand]     fetching {start} -> {end} ...")
-    n_demand = _upsert(conn, "demand", fetch_demand(start, end), ["timestamp", "region"])
-    print(f"[demand]     {n_demand} rows")
+    for region in regions:
+        print(f"\n[{region}] ── fetching {start} → {end}")
 
-    print(f"[generation] fetching {start} -> {end} ...")
-    n_gen = _upsert(
-        conn, "generation", fetch_generation(start, end), ["timestamp", "region", "fuel_type"]
-    )
-    print(f"[generation] {n_gen} rows")
+        print("  [demand]     fetching ...")
+        n = _upsert(conn, "demand", fetch_demand(start, end, region), ["timestamp", "region"])
+        print(f"  [demand]     {n} rows")
+        totals["demand"] += n
 
-    print("[weather]    fetching historical ...")
-    n_wx = _upsert(
-        conn, "weather", fetch_historical(start, end), ["timestamp", "latitude", "longitude"]
-    )
-    print(f"[weather]    {n_wx} rows")
+        print("  [generation] fetching ...")
+        n = _upsert(
+            conn, "generation",
+            fetch_generation(start, end, region),
+            ["timestamp", "region", "fuel_type"],
+        )
+        print(f"  [generation] {n} rows")
+        totals["generation"] += n
+
+        print("  [weather]    fetching ...")
+        n = _upsert(
+            conn, "weather",
+            fetch_historical(start, end, region),
+            ["timestamp", "latitude", "longitude"],
+        )
+        print(f"  [weather]    {n} rows")
+        totals["weather"] += n
 
     conn.close()
-    return {"demand": n_demand, "generation": n_gen, "weather": n_wx}
+    return totals
 
 
-def run_forecast_weather(db_path: str = "gridpulse.duckdb") -> dict:
+def run_forecast_weather(
+    db_path: str = "gridpulse.duckdb",
+    regions: list[str] | None = None,
+) -> dict:
+    if regions is None:
+        regions = ["ERCO"]
     conn = init_db(db_path)
+    total_wx = 0
 
-    print("[weather]    fetching 48h forecast ...")
-    n_wx = _upsert(conn, "weather", fetch_forecast(), ["timestamp", "latitude", "longitude"])
-    print(f"[weather]    {n_wx} rows")
+    for region in regions:
+        print(f"[{region}] fetching 48h forecast ...")
+        n = _upsert(
+            conn, "weather",
+            fetch_forecast(region),
+            ["timestamp", "latitude", "longitude"],
+        )
+        print(f"  {n} rows")
+        total_wx += n
 
     conn.close()
-    return {"weather": n_wx}
+    return {"weather": total_wx}
