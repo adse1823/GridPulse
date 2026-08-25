@@ -1,5 +1,9 @@
+import time
+
 import pandas as pd
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 _ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
 _FORECAST = "https://api.open-meteo.com/v1/forecast"
@@ -34,8 +38,45 @@ REGION_POINTS: dict[str, list[dict]] = {
     ],
 }
 
+REGION_TZ = {
+    "ERCO": "US/Central",
+    "CISO": "US/Pacific",
+    "PJM":  "US/Eastern",
+    "NYIS": "US/Eastern",
+}
+
 # Keep old name as alias so existing imports don't break
 ERCOT_POINTS = REGION_POINTS["ERCO"]
+
+
+def _session() -> requests.Session:
+    """Session with automatic retry on connection errors and 5xx responses."""
+    s = requests.Session()
+    retry = Retry(
+        total=5,
+        backoff_factor=2,        # waits 2, 4, 8, 16, 32 s between attempts
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+        raise_on_status=False,
+    )
+    s.mount("https://", HTTPAdapter(max_retries=retry))
+    return s
+
+
+def _get(session: requests.Session, url: str, params: dict, timeout: int) -> requests.Response:
+    """GET with an extra application-level retry for RemoteDisconnected errors."""
+    for attempt in range(1, 4):
+        try:
+            r = session.get(url, params=params, timeout=timeout)
+            r.raise_for_status()
+            return r
+        except requests.exceptions.ConnectionError as exc:
+            if attempt == 3:
+                raise
+            wait = 10 * attempt
+            print(f"  [weather] connection error (attempt {attempt}/3), retrying in {wait}s: {exc}")
+            time.sleep(wait)
+    raise RuntimeError("unreachable")
 
 
 def _parse(r: requests.Response, is_forecast: bool) -> pd.DataFrame:
@@ -52,21 +93,17 @@ def _parse(r: requests.Response, is_forecast: bool) -> pd.DataFrame:
 def fetch_historical(start: str, end: str, region: str = "ERCO") -> pd.DataFrame:
     """Hourly historical weather for the given region. start/end: 'YYYY-MM-DD'"""
     points = REGION_POINTS[region]
+    session = _session()
     frames = []
     for pt in points:
-        r = requests.get(
-            _ARCHIVE,
-            params={
-                "latitude": pt["lat"],
-                "longitude": pt["lon"],
-                "start_date": start,
-                "end_date": end,
-                "hourly": _VARS,
-                "timezone": "UTC",
-            },
-            timeout=60,
-        )
-        r.raise_for_status()
+        r = _get(session, _ARCHIVE, {
+            "latitude": pt["lat"],
+            "longitude": pt["lon"],
+            "start_date": start,
+            "end_date": end,
+            "hourly": _VARS,
+            "timezone": "UTC",
+        }, timeout=90)
         df = _parse(r, is_forecast=False)
         df["latitude"] = pt["lat"]
         df["longitude"] = pt["lon"]
@@ -80,20 +117,16 @@ def fetch_historical(start: str, end: str, region: str = "ERCO") -> pd.DataFrame
 def fetch_forecast(region: str = "ERCO") -> pd.DataFrame:
     """48-hour weather forecast for the given region."""
     points = REGION_POINTS[region]
+    session = _session()
     frames = []
     for pt in points:
-        r = requests.get(
-            _FORECAST,
-            params={
-                "latitude": pt["lat"],
-                "longitude": pt["lon"],
-                "hourly": _VARS,
-                "forecast_days": 2,
-                "timezone": "UTC",
-            },
-            timeout=30,
-        )
-        r.raise_for_status()
+        r = _get(session, _FORECAST, {
+            "latitude": pt["lat"],
+            "longitude": pt["lon"],
+            "hourly": _VARS,
+            "forecast_days": 2,
+            "timezone": "UTC",
+        }, timeout=30)
         df = _parse(r, is_forecast=True)
         df["latitude"] = pt["lat"]
         df["longitude"] = pt["lon"]

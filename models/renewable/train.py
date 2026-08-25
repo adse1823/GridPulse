@@ -64,18 +64,18 @@ def _train_keras(X_train, y_train, X_val, y_val):
 
 
 def _train_one(name: str, feature_cols: list, target_col: str,
-               train_df, val_df) -> dict:
+               train_df, val_df, region: str) -> dict:
     X_tr = train_df[feature_cols].values
     y_tr = train_df[target_col].values
     X_v = val_df[feature_cols].values
     y_v = val_df[target_col].values
 
-    print(f"  Training LightGBM for {name} ...")
+    print(f"  Training LightGBM for {name} ({region}) ...")
     lgb_model = _train_lgb(X_tr, y_tr, X_v, y_v)
     lgb_mae = _mae(y_v, lgb_model.predict(X_v))
     print(f"    LightGBM val MAE: {lgb_mae:,.0f} MW")
 
-    print(f"  Training Keras for {name} ...")
+    print(f"  Training Keras for {name} ({region}) ...")
     keras_model, scaler = _train_keras(X_tr, y_tr, X_v, y_v)
     keras_mae = _mae(y_v, keras_model.predict(scaler.transform(X_v), verbose=0).flatten())
     print(f"    Keras     val MAE: {keras_mae:,.0f} MW")
@@ -84,37 +84,40 @@ def _train_one(name: str, feature_cols: list, target_col: str,
 
     if lgb_mae <= keras_mae:
         winner = "lightgbm"
-        lgb_model.save_model(os.path.join(ARTIFACTS, f"{name}_model.lgb"))
+        lgb_model.save_model(os.path.join(ARTIFACTS, f"{name}_model_{region}.lgb"))
     else:
         winner = "keras"
-        keras_model.save(os.path.join(ARTIFACTS, f"{name}_model.keras"))
-        with open(os.path.join(ARTIFACTS, f"{name}_scaler.pkl"), "wb") as f:
+        keras_model.save(os.path.join(ARTIFACTS, f"{name}_model_{region}.keras"))
+        with open(os.path.join(ARTIFACTS, f"{name}_scaler_{region}.pkl"), "wb") as f:
             pickle.dump(scaler, f)
 
     meta = {"lightgbm": lgb_mae, "keras": keras_mae, "winner": winner}
-    with open(os.path.join(ARTIFACTS, f"{name}_val_mae.pkl"), "wb") as f:
+    with open(os.path.join(ARTIFACTS, f"{name}_val_mae_{region}.pkl"), "wb") as f:
         pickle.dump(meta, f)
 
-    print(f"  Winner ({name}): {winner}  (LightGBM {lgb_mae:,.0f} vs Keras {keras_mae:,.0f} MW)\n")
+    print(f"  Winner ({name}/{region}): {winner}  (LightGBM {lgb_mae:,.0f} vs Keras {keras_mae:,.0f} MW)\n")
     return meta
 
 
-def train(db_path: str = "gridpulse.duckdb") -> dict:
-    print("Building renewable feature matrix ...")
-    df = build_features(db_path)
+def train(db_path: str = "gridpulse.duckdb", region: str = "ERCO") -> dict:
+    print(f"Building renewable feature matrix for {region} ...")
+    df = build_features(db_path, region)
 
-    wind_train, val_df, _ = split(df)
-    print(f"  wind  — train={len(wind_train):,}  val={len(val_df):,}")
-    wind_meta = _train_one("wind", WIND_FEATURE_COLS, WIND_TARGET, wind_train, val_df)
+    wind_train, val_df, _ = split(df, region)
+    print(f"  wind  -- train={len(wind_train):,}  val={len(val_df):,}")
+    wind_meta = _train_one("wind", WIND_FEATURE_COLS, WIND_TARGET, wind_train, val_df, region)
 
-    solar_train, solar_val, _ = split_solar(df)
-    print(f"  solar — train={len(solar_train):,}  val={len(solar_val):,}  (2023+ only)")
-    solar_meta = _train_one("solar", SOLAR_FEATURE_COLS, SOLAR_TARGET, solar_train, solar_val)
+    solar_train, solar_val, _ = split_solar(df, region)
+    print(f"  solar -- train={len(solar_train):,}  val={len(solar_val):,}  (2023+ only)")
+    solar_meta = _train_one("solar", SOLAR_FEATURE_COLS, SOLAR_TARGET, solar_train, solar_val, region)
 
     return {"wind": wind_meta, "solar": solar_meta}
 
 
 if __name__ == "__main__":
-    import sys
-    db = sys.argv[1] if len(sys.argv) > 1 else "gridpulse.duckdb"
-    train(db)
+    import argparse
+    p = argparse.ArgumentParser()
+    p.add_argument("db", nargs="?", default="gridpulse.duckdb")
+    p.add_argument("--region", default="ERCO")
+    args = p.parse_args()
+    train(args.db, args.region)

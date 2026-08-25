@@ -3,6 +3,8 @@ import holidays
 import numpy as np
 import pandas as pd
 
+from ingest.weather import REGION_POINTS, REGION_TZ
+
 _TRAIN_END = "2023-07-31"
 _VAL_END = "2024-01-31"
 
@@ -15,31 +17,39 @@ FEATURE_COLS = [
 TARGET_COL = "demand_mw"
 
 
-def _load_demand(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
-    return conn.execute("""
+def _weather_cond(region: str) -> str:
+    pts = REGION_POINTS[region]
+    return " OR ".join(
+        f"(latitude = {p['lat']} AND longitude = {p['lon']})" for p in pts
+    )
+
+
+def _load_demand(conn: duckdb.DuckDBPyConnection, region: str) -> pd.DataFrame:
+    return conn.execute(f"""
         SELECT timestamp, demand_mw
         FROM demand
-        WHERE region = 'ERCO'
+        WHERE region = '{region}'
         ORDER BY timestamp
     """).df()
 
 
-def _load_weather(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
-    return conn.execute("""
+def _load_weather(conn: duckdb.DuckDBPyConnection, region: str) -> pd.DataFrame:
+    cond = _weather_cond(region)
+    return conn.execute(f"""
         SELECT timestamp,
                AVG(temperature_c)       AS temperature_c,
                AVG(wind_speed_10m_ms)   AS wind_speed_10m_ms
         FROM weather
-        WHERE is_forecast = FALSE
+        WHERE is_forecast = FALSE AND ({cond})
         GROUP BY timestamp
         ORDER BY timestamp
     """).df()
 
 
-def build_features(db_path: str = "gridpulse.duckdb") -> pd.DataFrame:
+def build_features(db_path: str = "gridpulse.duckdb", region: str = "ERCO") -> pd.DataFrame:
     conn = duckdb.connect(db_path, read_only=True)
-    demand = _load_demand(conn)
-    weather = _load_weather(conn)
+    demand = _load_demand(conn, region)
+    weather = _load_weather(conn, region)
     conn.close()
 
     demand["timestamp"] = pd.to_datetime(demand["timestamp"], utc=True)
@@ -48,9 +58,9 @@ def build_features(db_path: str = "gridpulse.duckdb") -> pd.DataFrame:
     df = demand.merge(weather, on="timestamp", how="left")
     df = df.sort_values("timestamp").reset_index(drop=True)
 
-    # calendar
+    tz = REGION_TZ[region]
     us_holidays = holidays.US(years=range(2022, 2026))
-    local = df["timestamp"].dt.tz_convert("US/Central")
+    local = df["timestamp"].dt.tz_convert(tz)
     df["hour"] = local.dt.hour
     df["day_of_week"] = local.dt.dayofweek
     df["month"] = local.dt.month
@@ -58,22 +68,20 @@ def build_features(db_path: str = "gridpulse.duckdb") -> pd.DataFrame:
     df["hour_sin"] = np.sin(2 * np.pi * df["hour"] / 24)
     df["hour_cos"] = np.cos(2 * np.pi * df["hour"] / 24)
 
-    # lag features
     df["demand_lag_24"] = df["demand_mw"].shift(24)
     df["demand_lag_48"] = df["demand_mw"].shift(48)
     df["demand_lag_168"] = df["demand_mw"].shift(168)
 
-    # weather transforms
     df["temperature_c_sq"] = df["temperature_c"] ** 2
 
-    # drop rows where lags are NaN (first 168 hours)
     df = df.dropna(subset=FEATURE_COLS + [TARGET_COL]).reset_index(drop=True)
 
     return df
 
 
-def split(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    local_date = df["timestamp"].dt.tz_convert("US/Central").dt.date.astype(str)
+def split(df: pd.DataFrame, region: str = "ERCO") -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    tz = REGION_TZ[region]
+    local_date = df["timestamp"].dt.tz_convert(tz).dt.date.astype(str)
     train = df[local_date <= _TRAIN_END].copy()
     val = df[(local_date > _TRAIN_END) & (local_date <= _VAL_END)].copy()
     test = df[local_date > _VAL_END].copy()

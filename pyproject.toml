@@ -29,7 +29,7 @@ dependencies = [
     "tensorflow>=2.16",
 
     # agents + serving — Tier 2
-    # "langgraph>=0.1",
+    "langgraph>=0.1",
     # "langchain>=0.2",
     # "fastapi>=0.111",
     # "uvicorn>=0.29",

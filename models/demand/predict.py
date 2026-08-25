@@ -8,49 +8,52 @@ import numpy as np
 import pandas as pd
 from tensorflow import keras
 
-from .features import FEATURE_COLS
+from .features import FEATURE_COLS, _weather_cond
+from ingest.weather import REGION_TZ
 
 ARTIFACTS = os.path.join(os.path.dirname(__file__), "..", "..", "models", "artifacts")
 
 
-def _load_forecast_weather(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
-    return conn.execute("""
+def _load_forecast_weather(conn: duckdb.DuckDBPyConnection, region: str) -> pd.DataFrame:
+    cond = _weather_cond(region)
+    return conn.execute(f"""
         SELECT timestamp,
                AVG(temperature_c)     AS temperature_c,
                AVG(wind_speed_10m_ms) AS wind_speed_10m_ms
         FROM weather
-        WHERE is_forecast = TRUE
+        WHERE is_forecast = TRUE AND ({cond})
         GROUP BY timestamp
         ORDER BY timestamp
     """).df()
 
 
-def _load_recent_demand(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
-    return conn.execute("""
+def _load_recent_demand(conn: duckdb.DuckDBPyConnection, region: str) -> pd.DataFrame:
+    return conn.execute(f"""
         SELECT timestamp, demand_mw
         FROM demand
-        WHERE region = 'ERCO'
+        WHERE region = '{region}'
         ORDER BY timestamp DESC
         LIMIT 200
     """).df()
 
 
-def predict(db_path: str = "gridpulse.duckdb") -> pd.DataFrame:
+def predict(db_path: str = "gridpulse.duckdb", region: str = "ERCO") -> pd.DataFrame:
     conn = duckdb.connect(db_path, read_only=True)
-    weather = _load_forecast_weather(conn)
-    recent = _load_recent_demand(conn)
+    weather = _load_forecast_weather(conn, region)
+    recent = _load_recent_demand(conn, region)
     conn.close()
 
     weather["timestamp"] = pd.to_datetime(weather["timestamp"], utc=True)
     recent["timestamp"] = pd.to_datetime(recent["timestamp"], utc=True)
     recent = recent.sort_values("timestamp").set_index("timestamp")
 
+    tz = REGION_TZ[region]
     us_holidays = holidays.US(years=range(2024, 2027))
 
     rows = []
     for _, row in weather.iterrows():
         ts = row["timestamp"]
-        local = ts.tz_convert("US/Central")
+        local = ts.tz_convert(tz)
         hour = local.hour
 
         def _lag(h):
@@ -76,20 +79,20 @@ def predict(db_path: str = "gridpulse.duckdb") -> pd.DataFrame:
     df = pd.DataFrame(rows)
     missing = df[FEATURE_COLS].isna().any(axis=1).sum()
     if missing:
-        print(f"  [demand predict] {missing} rows have missing lag values — filling with mean")
+        print(f"  [demand predict] {missing} rows have missing lag values -- filling with mean")
         df[FEATURE_COLS] = df[FEATURE_COLS].fillna(df[FEATURE_COLS].mean())
 
     X = df[FEATURE_COLS].values
 
-    with open(os.path.join(ARTIFACTS, "demand_val_mae.pkl"), "rb") as f:
+    with open(os.path.join(ARTIFACTS, f"demand_val_mae_{region}.pkl"), "rb") as f:
         meta = pickle.load(f)
 
     if meta["winner"] == "lightgbm":
-        model = lgb.Booster(model_file=os.path.join(ARTIFACTS, "demand_model.lgb"))
+        model = lgb.Booster(model_file=os.path.join(ARTIFACTS, f"demand_model_{region}.lgb"))
         preds = model.predict(X)
     else:
-        model = keras.models.load_model(os.path.join(ARTIFACTS, "demand_model.keras"))
-        with open(os.path.join(ARTIFACTS, "demand_scaler.pkl"), "rb") as f:
+        model = keras.models.load_model(os.path.join(ARTIFACTS, f"demand_model_{region}.keras"))
+        with open(os.path.join(ARTIFACTS, f"demand_scaler_{region}.pkl"), "rb") as f:
             scaler = pickle.load(f)
         preds = model.predict(scaler.transform(X), verbose=0).flatten()
 

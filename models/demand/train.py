@@ -60,10 +60,10 @@ def _train_keras(X_train, y_train, X_val, y_val) -> tuple:
     return model, scaler
 
 
-def train(db_path: str = "gridpulse.duckdb") -> dict:
-    print("Building feature matrix ...")
-    df = build_features(db_path)
-    train_df, val_df, test_df = split(df)
+def train(db_path: str = "gridpulse.duckdb", region: str = "ERCO") -> dict:
+    print(f"Building demand feature matrix for {region} ...")
+    df = build_features(db_path, region)
+    train_df, val_df, test_df = split(df, region)
 
     X_train = train_df[FEATURE_COLS].values
     y_train = train_df[TARGET_COL].values
@@ -86,22 +86,24 @@ def train(db_path: str = "gridpulse.duckdb") -> dict:
 
     if lgb_val_mae <= keras_val_mae:
         winner = "lightgbm"
-        lgb_model.save_model(os.path.join(ARTIFACTS, "demand_model.lgb"))
+        lgb_model.save_model(os.path.join(ARTIFACTS, f"demand_model_{region}.lgb"))
     else:
         winner = "keras"
-        keras_model.save(os.path.join(ARTIFACTS, "demand_model.keras"))
-        with open(os.path.join(ARTIFACTS, "demand_scaler.pkl"), "wb") as f:
+        keras_model.save(os.path.join(ARTIFACTS, f"demand_model_{region}.keras"))
+        with open(os.path.join(ARTIFACTS, f"demand_scaler_{region}.pkl"), "wb") as f:
             pickle.dump(scaler, f)
 
-    # always save both val MAEs for evaluate.py
-    with open(os.path.join(ARTIFACTS, "demand_val_mae.pkl"), "wb") as f:
+    with open(os.path.join(ARTIFACTS, f"demand_val_mae_{region}.pkl"), "wb") as f:
         pickle.dump({"lightgbm": lgb_val_mae, "keras": keras_val_mae, "winner": winner}, f)
 
-    print(f"\nWinner: {winner}  (LightGBM {lgb_val_mae:,.0f} vs Keras {keras_val_mae:,.0f} MW)")
+    print(f"\nWinner ({region}): {winner}  (LightGBM {lgb_val_mae:,.0f} vs Keras {keras_val_mae:,.0f} MW)")
     return {"winner": winner, "lgb_val_mae": lgb_val_mae, "keras_val_mae": keras_val_mae}
 
 
 if __name__ == "__main__":
-    import sys
-    db = sys.argv[1] if len(sys.argv) > 1 else "gridpulse.duckdb"
-    train(db)
+    import argparse
+    p = argparse.ArgumentParser()
+    p.add_argument("db", nargs="?", default="gridpulse.duckdb")
+    p.add_argument("--region", default="ERCO")
+    args = p.parse_args()
+    train(args.db, args.region)

@@ -20,7 +20,7 @@ def _mock_response(lat: float, lon: float, n: int = 4) -> MagicMock:
     return mock
 
 
-@patch("ingest.weather.requests.get")
+@patch("requests.Session.get")
 def test_fetch_historical_shape(mock_get):
     mock_get.side_effect = [_mock_response(pt["lat"], pt["lon"]) for pt in ERCOT_POINTS]
     df = fetch_historical("2024-01-01", "2024-01-01")
@@ -33,7 +33,7 @@ def test_fetch_historical_shape(mock_get):
     assert df["is_forecast"].eq(False).all()
 
 
-@patch("ingest.weather.requests.get")
+@patch("requests.Session.get")
 def test_fetch_forecast_shape(mock_get):
     mock_get.side_effect = [_mock_response(pt["lat"], pt["lon"], n=48) for pt in ERCOT_POINTS]
     df = fetch_forecast()
@@ -41,7 +41,7 @@ def test_fetch_forecast_shape(mock_get):
     assert df["is_forecast"].eq(True).all()
 
 
-@patch("ingest.weather.requests.get")
+@patch("requests.Session.get")
 def test_timestamps_are_utc(mock_get):
     mock_get.side_effect = [_mock_response(pt["lat"], pt["lon"]) for pt in ERCOT_POINTS]
     df = fetch_historical("2024-01-01", "2024-01-01")

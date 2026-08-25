@@ -40,7 +40,7 @@ def run_historical(
     totals: dict[str, int] = {"demand": 0, "generation": 0, "weather": 0}
 
     for region in regions:
-        print(f"\n[{region}] ── fetching {start} → {end}")
+        print(f"\n[{region}] -- fetching {start} -> {end}")
 
         print("  [demand]     fetching ...")
         n = _upsert(conn, "demand", fetch_demand(start, end, region), ["timestamp", "region"])
