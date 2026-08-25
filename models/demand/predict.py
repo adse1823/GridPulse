@@ -8,8 +8,9 @@ import numpy as np
 import pandas as pd
 from tensorflow import keras
 
-from .features import FEATURE_COLS, _weather_cond
 from ingest.weather import REGION_TZ
+
+from .features import FEATURE_COLS, _weather_cond
 
 ARTIFACTS = os.path.join(os.path.dirname(__file__), "..", "..", "models", "artifacts")
 

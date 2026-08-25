@@ -79,7 +79,9 @@ def build_features(db_path: str = "gridpulse.duckdb", region: str = "ERCO") -> p
     return df
 
 
-def split(df: pd.DataFrame, region: str = "ERCO") -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def split(
+    df: pd.DataFrame, region: str = "ERCO"
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     tz = REGION_TZ[region]
     local_date = df["timestamp"].dt.tz_convert(tz).dt.date.astype(str)
     train = df[local_date <= _TRAIN_END].copy()

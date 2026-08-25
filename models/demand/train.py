@@ -96,7 +96,8 @@ def train(db_path: str = "gridpulse.duckdb", region: str = "ERCO") -> dict:
     with open(os.path.join(ARTIFACTS, f"demand_val_mae_{region}.pkl"), "wb") as f:
         pickle.dump({"lightgbm": lgb_val_mae, "keras": keras_val_mae, "winner": winner}, f)
 
-    print(f"\nWinner ({region}): {winner}  (LightGBM {lgb_val_mae:,.0f} vs Keras {keras_val_mae:,.0f} MW)")
+    print(f"\nWinner ({region}): {winner}  "
+          f"(LightGBM {lgb_val_mae:,.0f} vs Keras {keras_val_mae:,.0f} MW)")
     return {"winner": winner, "lgb_val_mae": lgb_val_mae, "keras_val_mae": keras_val_mae}
 
 

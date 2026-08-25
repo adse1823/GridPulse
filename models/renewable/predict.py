@@ -7,8 +7,9 @@ import numpy as np
 import pandas as pd
 from tensorflow import keras
 
-from .features import WIND_FEATURE_COLS, _weather_cond
 from ingest.weather import REGION_TZ
+
+from .features import WIND_FEATURE_COLS, _weather_cond
 
 ARTIFACTS = os.path.join(os.path.dirname(__file__), "..", "..", "models", "artifacts")
 
@@ -84,7 +85,8 @@ def predict(db_path: str = "gridpulse.duckdb", region: str = "ERCO") -> pd.DataF
     wind_feats = df[WIND_FEATURE_COLS].copy()
     missing = wind_feats.isna().any(axis=1).sum()
     if missing:
-        print(f"  [wind predict] {missing} rows have missing lag values -- filling with column mean")
+        print(f"  [wind predict] {missing} rows have missing lag values"
+              " -- filling with column mean")
         wind_feats = wind_feats.fillna(wind_feats.mean())
 
     with open(os.path.join(ARTIFACTS, f"wind_val_mae_{region}.pkl"), "rb") as f:

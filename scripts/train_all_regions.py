@@ -83,10 +83,10 @@ def main() -> None:
         else:
             print("[1/3] Skipping ingest")
 
-        print(f"\n[2/3] Training demand model ...")
+        print("\n[2/3] Training demand model ...")
         demand_meta = train_demand(args.db, region)
 
-        print(f"\n[3/3] Training renewable models ...")
+        print("\n[3/3] Training renewable models ...")
         renewable_meta = train_renewable(args.db, region)
 
         results[region] = {"demand": demand_meta, "renewable": renewable_meta}
@@ -99,7 +99,8 @@ def main() -> None:
         w = meta["renewable"]["wind"]
         s = meta["renewable"]["solar"]
         print(f"{region}:")
-        print(f"  demand  winner={d['winner']}  val_mae={min(d['lgb_val_mae'], d['keras_val_mae']):,.0f} MW")
+        demand_mae = min(d['lgb_val_mae'], d['keras_val_mae'])
+        print(f"  demand  winner={d['winner']}  val_mae={demand_mae:,.0f} MW")
         print(f"  wind    winner={w['winner']}  val_mae={min(w['lightgbm'], w['keras']):,.0f} MW")
         print(f"  solar   winner={s['winner']}  val_mae={min(s['lightgbm'], s['keras']):,.0f} MW")
 

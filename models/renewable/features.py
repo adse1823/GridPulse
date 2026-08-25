@@ -90,7 +90,9 @@ def build_features(db_path: str = "gridpulse.duckdb", region: str = "ERCO") -> p
     return df
 
 
-def split(df: pd.DataFrame, region: str = "ERCO") -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def split(
+    df: pd.DataFrame, region: str = "ERCO"
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     tz = REGION_TZ[region]
     local_date = df["timestamp"].dt.tz_convert(tz).dt.date.astype(str)
     train = df[local_date <= _TRAIN_END].copy()
@@ -99,7 +101,9 @@ def split(df: pd.DataFrame, region: str = "ERCO") -> tuple[pd.DataFrame, pd.Data
     return train, val, test
 
 
-def split_solar(df: pd.DataFrame, region: str = "ERCO") -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def split_solar(
+    df: pd.DataFrame, region: str = "ERCO"
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Solar-specific split: training starts 2023-01-01 to avoid low-capacity 2022 data."""
     tz = REGION_TZ[region]
     local_date = df["timestamp"].dt.tz_convert(tz).dt.date.astype(str)

@@ -95,7 +95,8 @@ def _train_one(name: str, feature_cols: list, target_col: str,
     with open(os.path.join(ARTIFACTS, f"{name}_val_mae_{region}.pkl"), "wb") as f:
         pickle.dump(meta, f)
 
-    print(f"  Winner ({name}/{region}): {winner}  (LightGBM {lgb_mae:,.0f} vs Keras {keras_mae:,.0f} MW)\n")
+    print(f"  Winner ({name}/{region}): {winner}  "
+          f"(LightGBM {lgb_mae:,.0f} vs Keras {keras_mae:,.0f} MW)\n")
     return meta
 
 
@@ -109,7 +110,9 @@ def train(db_path: str = "gridpulse.duckdb", region: str = "ERCO") -> dict:
 
     solar_train, solar_val, _ = split_solar(df, region)
     print(f"  solar -- train={len(solar_train):,}  val={len(solar_val):,}  (2023+ only)")
-    solar_meta = _train_one("solar", SOLAR_FEATURE_COLS, SOLAR_TARGET, solar_train, solar_val, region)
+    solar_meta = _train_one(
+        "solar", SOLAR_FEATURE_COLS, SOLAR_TARGET, solar_train, solar_val, region
+    )
 
     return {"wind": wind_meta, "solar": solar_meta}
 
