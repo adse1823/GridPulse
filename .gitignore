@@ -20,6 +20,9 @@ build/
 *.duckdb.wal
 data/
 
+# rag corpus — downloaded PDFs (large, not committed)
+docs/corpus/
+
 # model artifacts
 models/artifacts/
 

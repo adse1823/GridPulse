@@ -111,18 +111,17 @@ These must exist before writing any pipeline code:
 - [x] GitHub Actions CI (lint + test on push)
 
 **Tier 2 — agentize + LLM/RAG**
-- [ ] Split into LangGraph-orchestrated agents
-- [ ] Extend ingestion/forecasting to multiple tracked regions/Balancing
-      Authorities (needed for headroom ranking to have something to rank across)
-- [ ] Headroom-ranker agent — ranks regions by spare capacity margin (Option A:
-      reuses existing forecasts, regional aggregation only — not
-      substation/feeder-level hosting capacity, see scope-decisions doc)
-- [ ] LLM-based reporting agent
-- [ ] RAG over historical grid incident write-ups (HF sentence-transformer
-      embeddings + Chroma)
-- [ ] FastAPI serving layer
-- [ ] Streamlit dashboard
+
+- [x] Split into LangGraph-orchestrated agents (parallel demand + renewable, then risk + report)
+- [x] Extend ingestion/forecasting to ERCO, CISO, PJM, NYIS
+- [x] Headroom-ranker agent — ranks regions by median spare capacity margin
+- [x] LLM-based reporting agent (Claude, single call per run)
+- [x] RAG over historical grid incident write-ups (sentence-transformers + Chroma)
+- [x] FastAPI serving layer (POST /report, GET /headroom, GET /health)
+- [x] Streamlit dashboard (risk chart + headroom ranking, plotly)
 - [ ] Dockerize each agent
+
+**Completed: 2026-08-25. See `docs/tier2-scope.md` and `docs/decisions.md`.**
 
 **Tier 3 — ops, scheduling, cloud (incremental, non-blocking)**
 - [ ] Airflow DAG for the ingest → forecast → aggregate → report pipeline

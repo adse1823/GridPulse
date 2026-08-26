@@ -31,11 +31,14 @@ dependencies = [
     # agents + serving — Tier 2
     "langgraph>=0.1",
     # "langchain>=0.2",
-    # "fastapi>=0.111",
-    # "uvicorn>=0.29",
-    # "streamlit>=1.35",
-    # "chromadb>=0.5",
-    # "sentence-transformers>=3.0",
+    "fastapi>=0.111",
+    "uvicorn>=0.29",
+    "streamlit>=1.35",
+    "plotly>=5.0",
+    "anthropic>=0.40",
+    "chromadb>=0.5",
+    "sentence-transformers>=3.0",
+    "pypdf>=4.0",
 ]
 
 [project.scripts]

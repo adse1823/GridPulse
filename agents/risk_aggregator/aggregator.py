@@ -1,12 +1,15 @@
 import pandas as pd
 
-# Fixed seasonal dispatchable capacity (GW → MW)
-# Conservative: installed capacity minus ~15% typical planned outage rate
-# Winter is lower because cold snaps trip unweatherized gas plants (Feb 2021 lesson)
-_DISPATCHABLE_MW = {
-    "summer":   46_000,  # Jun–Sep
-    "winter":   42_000,  # Nov–Feb
-    "shoulder": 50_000,  # Mar–May, Oct
+from ingest.weather import REGION_TZ
+
+# Fixed seasonal dispatchable capacity per region (MW)
+# Conservative: installed dispatchable capacity minus ~15% typical planned outage rate
+# Winter is lower for ERCO because cold snaps trip unweatherized gas plants (Feb 2021)
+_REGION_DISPATCHABLE_MW: dict[str, dict[str, int]] = {
+    "ERCO": {"summer": 46_000, "winter": 42_000, "shoulder": 50_000},
+    "CISO": {"summer": 38_000, "winter": 35_000, "shoulder": 40_000},
+    "PJM":  {"summer": 130_000, "winter": 120_000, "shoulder": 135_000},
+    "NYIS": {"summer": 26_000, "winter": 24_000, "shoulder": 28_000},
 }
 
 _SAFETY_MARGIN_MW = 3_000
@@ -23,6 +26,7 @@ def _season(month: int) -> str:
 def aggregate(
     demand_df: pd.DataFrame,
     renewable_df: pd.DataFrame,
+    region: str = "ERCO",
 ) -> pd.DataFrame:
     """
     demand_df:    columns [timestamp, demand_forecast_mw]
@@ -30,11 +34,16 @@ def aggregate(
 
     Returns a per-hour DataFrame with supply components, shortfall, and AT_RISK flag.
     """
+    dispatchable = _REGION_DISPATCHABLE_MW[region]
+    tz = REGION_TZ[region]
+
     df = demand_df.merge(renewable_df, on="timestamp", how="inner")
     df = df.sort_values("timestamp").reset_index(drop=True)
 
-    local = df["timestamp"].dt.tz_convert("US/Central")
-    df["dispatchable_mw"] = local.dt.month.apply(_dispatchable_MW)
+    local = df["timestamp"].dt.tz_convert(tz)
+    df["dispatchable_mw"] = local.dt.month.apply(
+        lambda m: dispatchable[_season(m)]
+    )
     df["renewable_mw"] = df["wind_forecast_mw"] + df["solar_forecast_mw"]
     df["total_supply_mw"] = df["renewable_mw"] + df["dispatchable_mw"]
     df["shortfall_mw"] = df["demand_forecast_mw"] - df["total_supply_mw"]
@@ -53,24 +62,20 @@ def aggregate(
     ]]
 
 
-def _dispatchable_MW(month: int) -> int:
-    return _DISPATCHABLE_MW[_season(month)]
-
-
-def run(db_path: str = "gridpulse.duckdb") -> pd.DataFrame:
+def run(db_path: str = "gridpulse.duckdb", region: str = "ERCO") -> pd.DataFrame:
     from models.demand.predict import predict as demand_predict
     from models.renewable.predict import predict as renewable_predict
 
-    print("Running demand forecast ...")
-    demand_df = demand_predict(db_path)
+    print(f"Running demand forecast ({region}) ...")
+    demand_df = demand_predict(db_path, region)
     print(f"  {len(demand_df)} hours forecast")
 
-    print("Running renewable forecast ...")
-    renewable_df = renewable_predict(db_path)
+    print(f"Running renewable forecast ({region}) ...")
+    renewable_df = renewable_predict(db_path, region)
     print(f"  {len(renewable_df)} hours forecast")
 
     print("Aggregating risk ...")
-    risk_df = aggregate(demand_df, renewable_df)
+    risk_df = aggregate(demand_df, renewable_df, region)
     at_risk = risk_df["at_risk"].sum()
     print(f"  {at_risk} of {len(risk_df)} hours flagged AT RISK")
 

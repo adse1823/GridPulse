@@ -1,13 +1,16 @@
 import os
+import time
 
 import pandas as pd
 import requests
 from dotenv import load_dotenv
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 load_dotenv()
 
 _BASE = "https://api.eia.gov/v2/electricity/rto"
-_PAGE = 5000
+_PAGE = 2000  # smaller pages = less chance of 504 on large generation datasets
 
 
 def _api_key() -> str:
@@ -17,11 +20,33 @@ def _api_key() -> str:
     return key
 
 
+def _session() -> requests.Session:
+    s = requests.Session()
+    retry = Retry(
+        total=5,
+        backoff_factor=2,       # waits 2, 4, 8, 16, 32 s between attempts
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+        raise_on_status=False,
+    )
+    s.mount("https://", HTTPAdapter(max_retries=retry))
+    return s
+
+
 def _paginate(url: str, params: dict) -> list[dict]:
+    session = _session()
     rows, offset = [], 0
     while True:
-        r = requests.get(url, params={**params, "offset": offset}, timeout=120)
-        r.raise_for_status()
+        for attempt in range(1, 4):
+            r = session.get(url, params={**params, "offset": offset}, timeout=120)
+            if r.status_code == 504 and attempt < 3:
+                wait = 15 * attempt
+                print(f"  [eia] 504 at offset={offset} (attempt {attempt}/3),"
+                      f" retrying in {wait}s ...")
+                time.sleep(wait)
+                continue
+            r.raise_for_status()
+            break
         data = r.json()["response"]["data"]
         if not data:
             break

@@ -139,3 +139,110 @@ total supply ~44 GW → shortfall ~25 GW → correctly flagged AT RISK.
 A true model backtest (running trained models against historical forecast
 weather) would require storing weather forecasts at the time of forecast issue,
 which EIA and Open-Meteo do not provide retroactively. Left for Tier 2.
+
+---
+
+## Tier 2
+
+Decisions made during the Tier 2 build. Ordered roughly by when they were made.
+
+---
+
+## Multi-region expansion
+
+### split() hardcoded US/Central — bug fix
+
+`models/demand/features.py` and `models/renewable/features.py` both used
+`"US/Central"` in `split()` regardless of region. For CISO (Pacific) and
+PJM/NYIS (Eastern), the train/val boundary dates were off by up to 3 hours.
+Fixed by adding a `region` parameter to `split()` and `split_solar()` and
+using `REGION_TZ[region]`.
+
+### EIA 504 timeouts on CISO/PJM/NYIS generation data
+
+CISO and PJM generation endpoints return more rows than ERCO (~300k+ rows
+for PJM). At page size 5,000 the EIA gateway would 504 on mid-range pages.
+Fixed by reducing page size to 2,000 and adding a retry session (urllib3
+`Retry` adapter) plus an application-level retry loop for 504s specifically
+(3 attempts, 15s/30s waits). ERCO ingest is unaffected.
+
+### Region-specific dispatchable capacity
+
+The aggregator previously used ERCO's fixed seasonal estimates for all
+regions. For multi-region headroom ranking this is wrong — PJM has ~130 GW
+of dispatchable capacity, NYIS ~26 GW. Added `_REGION_DISPATCHABLE_MW` dict
+in `aggregator.py` with conservative per-region seasonal estimates. ERCO
+values are unchanged.
+
+### FERC report URL serves HTML, not PDF
+
+The FERC URL in `docs/references.md` links to a webpage, not a direct PDF
+download. The `_download()` function now validates the first 8 bytes of the
+response — if it doesn't start with `%PDF`, it skips the document and prints
+instructions to download manually. The UT Austin and NERC WRA PDFs download
+correctly. The FERC PDF must be saved manually to `docs/corpus/`.
+
+---
+
+## LangGraph graph design
+
+### Parallel fan-out for demand and renewable forecasts
+
+Demand and renewable forecasts are independent — neither needs the other's
+output. Wired both from `START` in the StateGraph so LangGraph runs them
+concurrently. `risk_aggregate` has two incoming edges and LangGraph
+automatically waits for both before running it. No threading code needed.
+
+### Plain-text report and LLM narrative run in parallel
+
+After `risk_aggregate`, both `generate_report` (template) and `llm_report`
+(Claude) are independent. Both connect to `END` directly. This means the
+plain-text report is always available in `state["report"]` even if the LLM
+call fails.
+
+### Lazy imports inside node functions
+
+All heavy imports (TensorFlow, LightGBM, Chroma, Anthropic) are inside the
+node functions, not at module level. This keeps `from agents.graph import graph`
+fast (no TF load on import) and avoids circular import issues.
+
+---
+
+## RAG + LLM reporting
+
+### sentence-transformers locally, Claude for generation
+
+Embeddings use `all-MiniLM-L6-v2` running locally (no API key, ~80 MB model).
+Generation uses `claude-sonnet-4-6` via the Anthropic API — one call per
+pipeline run, only when AT RISK hours exist. If the key is missing, the node
+raises immediately with a clear error rather than silently returning empty.
+
+### chromadb.PersistentClient is a factory function
+
+`chromadb.PersistentClient` is not a class — it's a callable that returns a
+client object. This means `PersistentClient | None` fails at runtime with
+`TypeError: unsupported operand type(s) for |`. Removed the type annotation
+on the module-level `_client` variable in `retrieve.py`.
+
+### load_dotenv() must be called per module
+
+`os.getenv("ANTHROPIC_API_KEY")` returned `None` because `load_dotenv()` was
+only called in `eia.py`. Added `load_dotenv()` at module level in
+`llm_report.py`. Any future module that reads from `.env` must do the same.
+
+---
+
+## API and dashboard
+
+### FastAPI: graphs built once at startup via lifespan
+
+Both `graph` and `headroom_graph` are compiled at server startup using the
+`lifespan` context manager and stored in module-level variables. Building a
+LangGraph at import time is cheap; `invoke()` is what runs the models.
+Rebuilding per-request would re-validate the graph structure unnecessarily.
+
+### Streamlit: st.pills for region selection
+
+`st.selectbox` was replaced with `st.pills` (added in Streamlit 1.37) for
+the region selector in the Risk Report tab. Gives button-style toggle
+behaviour. The installed version (1.62) supports it.
