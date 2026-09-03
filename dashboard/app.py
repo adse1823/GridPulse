@@ -26,7 +26,7 @@ def get_graphs():
 # ---------- sidebar ----------
 
 st.sidebar.title("⚡ GridPulse")
-db_path = st.sidebar.text_input("DuckDB path", value="gridpulse.duckdb")
+db_path = st.sidebar.text_input("DuckDB path", value=os.getenv("GRIDPULSE_DB", "gridpulse.duckdb"))
 tab_choice = st.sidebar.radio("View", ["Risk Report", "Headroom Ranking"])
 
 # ---------- Risk Report tab ----------

@@ -43,8 +43,14 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
+# docker
+.dockerignore
+
 # terraform
 infra/.terraform/
 infra/*.tfstate
 infra/*.tfstate.backup
 infra/*.tfvars
+
+
+4 hour progress.md
