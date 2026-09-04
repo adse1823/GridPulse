@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from agents.graph import build_graph
 from agents.headroom_graph import ALL_REGIONS, build_headroom_graph
+from ingest.weather import REGION_TZ
 
 st.set_page_config(
     page_title="GridPulse",
@@ -61,7 +62,7 @@ if tab_choice == "Risk Report":
         st.divider()
 
         # Supply vs demand chart
-        local_ts = risk_df["timestamp"].dt.tz_convert("US/Central")
+        local_ts = risk_df["timestamp"].dt.tz_convert(REGION_TZ[region])
 
         fig = go.Figure()
         fig.add_trace(go.Scatter(

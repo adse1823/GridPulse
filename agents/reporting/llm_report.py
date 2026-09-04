@@ -5,6 +5,7 @@ import pandas as pd
 from dotenv import load_dotenv
 
 from agents.rag.retrieve import format_passages, retrieve
+from ingest.weather import REGION_TZ
 
 load_dotenv()
 
@@ -33,7 +34,9 @@ def _build_risk_summary(risk_df: pd.DataFrame, region: str) -> str:
 
     peak_idx = risk_df["shortfall_mw"].idxmax()
     peak = risk_df.loc[peak_idx]
-    peak_ts = peak["timestamp"].tz_convert("US/Central").strftime("%Y-%m-%d %H:%M CST")
+    tz = REGION_TZ[region]
+    tz_abbr = tz.split("/")[-1][:3].upper()
+    peak_ts = peak["timestamp"].tz_convert(tz).strftime(f"%Y-%m-%d %H:%M {tz_abbr}")
 
     wind_pct = peak["wind_forecast_mw"] / peak["demand_forecast_mw"] * 100
     solar_pct = peak["solar_forecast_mw"] / peak["demand_forecast_mw"] * 100
