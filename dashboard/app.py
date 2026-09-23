@@ -27,7 +27,7 @@ def get_graphs():
 # ---------- sidebar ----------
 
 st.sidebar.title("⚡ GridPulse")
-db_path = st.sidebar.text_input("DuckDB path", value=os.getenv("GRIDPULSE_DB", "gridpulse.duckdb"))
+db_path = st.sidebar.text_input("DuckDB path", value=os.getenv("GRIDPULSE_DB", "gridpulse_slim.duckdb"))
 tab_choice = st.sidebar.radio("View", ["Risk Report", "Headroom Ranking"])
 
 # ---------- Risk Report tab ----------
@@ -86,7 +86,7 @@ if tab_choice == "Risk Report":
             legend=dict(orientation="h", y=-0.2),
             height=420,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # Breakdown chart
         fig2 = go.Figure()
@@ -116,7 +116,7 @@ if tab_choice == "Risk Report":
             legend=dict(orientation="h", y=-0.2),
             height=380,
         )
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width="stretch")
 
         st.divider()
 
@@ -143,7 +143,7 @@ if tab_choice == "Risk Report":
                                  for _ in row],
                     axis=1,
                 ),
-                use_container_width=True,
+                width="stretch",
             )
     else:
         st.info("Select a region and click **Run Report** to generate the 48h forecast.")
@@ -180,7 +180,7 @@ else:
             yaxis_title="MW (positive = surplus)",
             height=380,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # Ranking table
         display = ranking_df.copy()
@@ -202,7 +202,7 @@ else:
             "at_risk": "AT RISK",
         })[["Region", "Median Headroom", "Min Headroom", "Hours OK", "AT RISK"]]
 
-        st.dataframe(display, use_container_width=True, hide_index=True)
+        st.dataframe(display, width="stretch", hide_index=True)
 
         with st.expander("Text table"):
             st.code(result["ranking_table"], language=None)

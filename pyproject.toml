@@ -26,8 +26,6 @@ dependencies = [
     # models — Tier 1
     "lightgbm>=4.3",
     "scikit-learn>=1.4",
-    "tensorflow>=2.16",
-
     # agents + serving — Tier 2
     "langgraph>=0.1",
     # "langchain>=0.2",

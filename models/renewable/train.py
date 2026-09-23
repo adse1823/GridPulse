@@ -82,9 +82,9 @@ def _train_one(name: str, feature_cols: list, target_col: str,
 
     os.makedirs(ARTIFACTS, exist_ok=True)
 
+    lgb_model.save_model(os.path.join(ARTIFACTS, f"{name}_model_{region}.lgb"))
     if lgb_mae <= keras_mae:
         winner = "lightgbm"
-        lgb_model.save_model(os.path.join(ARTIFACTS, f"{name}_model_{region}.lgb"))
     else:
         winner = "keras"
         keras_model.save(os.path.join(ARTIFACTS, f"{name}_model_{region}.keras"))

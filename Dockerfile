@@ -23,10 +23,6 @@ RUN pip install --no-cache-dir --timeout=300 --retries=5 \
 RUN pip install --no-cache-dir --timeout=300 --retries=5 \
     "lightgbm>=4.3" "scikit-learn>=1.4"
 
-# TensorFlow (large — isolated so failure here doesn't re-run above layers)
-RUN pip install --no-cache-dir --timeout=300 --retries=5 \
-    "tensorflow>=2.16"
-
 # Serving + agent deps
 RUN pip install --no-cache-dir --timeout=300 --retries=5 \
     "langgraph>=0.1" "fastapi>=0.111" "uvicorn>=0.29" \

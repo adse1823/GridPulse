@@ -15,16 +15,15 @@ dist/
 build/
 .eggs/
 
-# data & db
+# data & db — full db stays local, slim db is committed for deployment
 *.duckdb
 *.duckdb.wal
-data/
+!gridpulse_slim.duckdb
 
-# rag corpus — downloaded PDFs (large, not committed)
-docs/corpus/
+# model artifacts — commit lgb/pkl for deployment, exclude stale keras files
+models/artifacts/*.keras
 
-# model artifacts
-models/artifacts/
+# rag corpus and chroma index — committed for deployment (small, pre-built)
 
 # testing & linting
 .pytest_cache/

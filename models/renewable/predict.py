@@ -5,7 +5,6 @@ import duckdb
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
-from tensorflow import keras
 
 from ingest.weather import REGION_TZ
 
@@ -89,17 +88,8 @@ def predict(db_path: str = "gridpulse.duckdb", region: str = "ERCO") -> pd.DataF
               " -- filling with column mean")
         wind_feats = wind_feats.fillna(wind_feats.mean())
 
-    with open(os.path.join(ARTIFACTS, f"wind_val_mae_{region}.pkl"), "rb") as f:
-        wind_meta = pickle.load(f)
-
-    if wind_meta["winner"] == "lightgbm":
-        wind_model = lgb.Booster(model_file=os.path.join(ARTIFACTS, f"wind_model_{region}.lgb"))
-        wind_preds = wind_model.predict(wind_feats.values)
-    else:
-        wind_model = keras.models.load_model(os.path.join(ARTIFACTS, f"wind_model_{region}.keras"))
-        with open(os.path.join(ARTIFACTS, f"wind_scaler_{region}.pkl"), "rb") as f:
-            scaler = pickle.load(f)
-        wind_preds = wind_model.predict(scaler.transform(wind_feats.values), verbose=0).flatten()
+    wind_model = lgb.Booster(model_file=os.path.join(ARTIFACTS, f"wind_model_{region}.lgb"))
+    wind_preds = wind_model.predict(wind_feats.values)
 
     wind_preds = np.clip(wind_preds, 0, None)
 
