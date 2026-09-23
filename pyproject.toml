@@ -21,7 +21,6 @@ dependencies = [
     "requests>=2.31",
     "python-dotenv>=1.0",
     "holidays>=0.46",          # calendar features (US holidays)
-    "gridstatus>=0.24",        # no-key ERCOT/CAISO/PJM data
 
     # models — Tier 1
     "lightgbm>=4.3",
