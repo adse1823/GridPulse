@@ -13,13 +13,12 @@ import time
 
 import chromadb
 import requests
-from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 from pypdf import PdfReader
 
 CORPUS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "docs", "corpus")
 CHROMA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "chroma")
 COLLECTION = "grid_incidents"
-EMBED_MODEL = "all-MiniLM-L6-v2"
 
 CHUNK_SIZE = 400    # words per chunk
 CHUNK_OVERLAP = 80  # words of overlap between consecutive chunks
@@ -110,7 +109,7 @@ def ingest(force: bool = False) -> None:
     os.makedirs(CORPUS_DIR, exist_ok=True)
     os.makedirs(CHROMA_DIR, exist_ok=True)
 
-    embed_fn = SentenceTransformerEmbeddingFunction(model_name=EMBED_MODEL)
+    embed_fn = DefaultEmbeddingFunction()
     client = chromadb.PersistentClient(path=CHROMA_DIR)
 
     if force and COLLECTION in [c.name for c in client.list_collections()]:

@@ -1,9 +1,9 @@
 import os
 
 import chromadb
-from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
-from agents.rag.ingest import CHROMA_DIR, COLLECTION, EMBED_MODEL
+from agents.rag.ingest import CHROMA_DIR, COLLECTION
 
 _client = None
 _collection = None
@@ -19,7 +19,7 @@ def _get_collection():
         _client = chromadb.PersistentClient(path=CHROMA_DIR)
         _collection = _client.get_collection(
             name=COLLECTION,
-            embedding_function=SentenceTransformerEmbeddingFunction(model_name=EMBED_MODEL),
+            embedding_function=DefaultEmbeddingFunction(),
         )
     return _collection
 
